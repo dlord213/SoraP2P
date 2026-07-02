@@ -520,8 +520,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const connectSignaling = (room: string, isInitiator: boolean) => {
     setConnectionStatus('connecting');
 
-    // Detect server host
-    const socketUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`;
+    // Detect server host with fallback to env variable for cloud deployments (e.g. Vercel)
+    const envUrl = import.meta.env.VITE_SIGNALING_URL;
+    const socketUrl = envUrl || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`;
     console.log('Connecting to signaling:', socketUrl);
 
     const ws = new WebSocket(socketUrl);
