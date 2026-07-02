@@ -24,7 +24,24 @@ export const links: Route.LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap",
   },
+  {
+    rel: "icon",
+    type: "image/png",
+    href: "/sora_mascot_transparent.png",
+  },
 ];
+
+export function meta() {
+  return [
+    { title: "Sora - Secure End-to-End Encrypted P2P File Transfer" },
+    { name: "description", content: "Zero registration. Zero storage. Direct peer-to-peer file sharing via WebRTC and Web Crypto AES-GCM 256-bit encryption. Map rooms with client-side secrets." },
+    { property: "og:title", content: "Sora - Secure End-to-End Encrypted P2P File Transfer" },
+    { property: "og:description", content: "Direct, server-free, client-side encrypted file streaming over WebRTC." },
+    { property: "og:image", content: "/sora_mascot_transparent.png" },
+    { property: "og:url", content: "https://sorap2p.me" },
+    { name: "twitter:card", content: "summary" },
+  ];
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
