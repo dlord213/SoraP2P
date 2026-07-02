@@ -130,7 +130,7 @@ function AppShell() {
         {/* Left Column Logo */}
         <div className="w-full md:w-64 flex flex-col justify-center items-center md:items-start p-2">
           <div className="flex items-center gap-2 mb-1">
-            <img src="/sora_mascot_transparent.png" alt="Sora Mascot" className="w-8 h-8 object-contain select-none" style={{ imageRendering: "pixelated" }} />
+            <img src="/sora_mascot_transparent.png" alt="Sora Mascot" className="w-24 h-24 object-contain select-none" style={{ imageRendering: "pixelated" }} />
             <div className="habbo-logo mb-0">SORA</div>
           </div>
           <span className="text-[10px] font-pixel text-white opacity-85">
@@ -351,7 +351,7 @@ function AppShell() {
               <span className="font-pixel text-[9px] text-[#fff580] tracking-wider uppercase">
                 {modalType === "privacy" ? "SORA HOTEL - PRIVACY POLICY" : "SORA HOTEL - TERMS & CONDITIONS"}
               </span>
-              <button 
+              <button
                 onClick={() => setModalType(null)}
                 className="font-pixel text-[9px] text-white hover:text-red-300 cursor-pointer focus:outline-none"
               >
