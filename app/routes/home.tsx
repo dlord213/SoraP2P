@@ -1,14 +1,14 @@
 import type { Route } from "./+types/home";
 import { useApp } from "../context/AppContext";
 import { useState, useEffect, useRef } from "react";
-import { 
-  UploadCloud, 
-  Copy, 
-  Check, 
-  HelpCircle, 
-  FileText, 
-  DownloadCloud, 
-  ArrowRight, 
+import {
+  UploadCloud,
+  Copy,
+  Check,
+  HelpCircle,
+  FileText,
+  DownloadCloud,
+  ArrowRight,
   Terminal as TerminalIcon,
   ShieldCheck,
   Zap,
@@ -16,7 +16,7 @@ import {
   X
 } from "lucide-react";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ }: Route.MetaArgs) {
   return [
     { title: "Sora - 2003 P2P File Transfer" },
     { name: "description", content: "Zero storage. Zero accounts. Pure peer-to-peer secure file sharing powered by WebRTC and Web Crypto E2E Encryption." },
@@ -59,7 +59,7 @@ export default function Home() {
           setLastSuccessId(latest.id);
           setSuccessFileName(latest.fileName);
           setShowSuccessMascot(true);
-          
+
           const timer = setTimeout(() => {
             setShowSuccessMascot(false);
           }, 6000);
@@ -151,11 +151,11 @@ export default function Home() {
 
   return (
     <div className="flex-1 flex flex-col gap-6 w-full">
-      
+
       {/* Transfer Panel (Active or Idle) */}
       {!roomId && connectionStatus === "idle" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-          
+
           {/* TRANSMIT BLOCK */}
           <div className="card-cream p-5 flex flex-col justify-between min-h-[340px]">
             <div>
@@ -173,11 +173,10 @@ export default function Home() {
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
                 onClick={triggerFileInput}
-                className={`border-2 border-dashed cursor-pointer flex flex-col items-center justify-center p-6 rounded-lg transition-colors select-none ${
-                  dragActive
-                    ? "border-black bg-white/40"
-                    : "border-gray-500 hover:border-black bg-white/20"
-                }`}
+                className={`border-2 border-dashed cursor-pointer flex flex-col items-center justify-center p-6 rounded-lg transition-colors select-none ${dragActive
+                  ? "border-black bg-white/40"
+                  : "border-gray-500 hover:border-black bg-white/20"
+                  }`}
               >
                 <input
                   ref={fileInputRef}
@@ -264,12 +263,12 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Share details */}
             <div className="md:col-span-2 flex flex-col gap-4">
-              
+
               <div className="border border-black/20 bg-white/30 rounded-lg p-4">
                 <div className="font-pixel text-[8px] text-[#5c3e0c] mb-3 select-none">
                   HANDSHAKE DETAILS:
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Code Card */}
                   <div className="bg-[#fffbeb] border border-black/20 p-3 text-center rounded-lg">
@@ -326,15 +325,8 @@ export default function Home() {
               <div className="border border-black/20 bg-white/30 rounded-lg p-4 flex flex-col justify-center min-h-[160px]">
                 {showSuccessMascot ? (
                   <div className="flex flex-col items-center justify-center py-4 text-center select-none relative overflow-hidden">
-                    <div className="animate-mascot-hover relative mb-3">
-                      <img src="/tobas_mascot.png" alt="Tobas Mascot" className="w-14 h-14 object-contain" style={{ imageRendering: "pixelated" }} />
-                      <div className="absolute -bottom-2.5 left-5 right-5 flex justify-around">
-                        <div className="w-2 h-5 bg-orange-500 rounded-b-full animate-flame origin-top shadow-[0_0_6px_#ff9800]"></div>
-                        <div className="w-2 h-5 bg-orange-500 rounded-b-full animate-flame origin-top shadow-[0_0_6px_#ff9800] delay-75"></div>
-                      </div>
-                    </div>
                     <span className="font-pixel text-[8px] text-green-700 mb-1 animate-pulse">
-                      TOBAS DELIVERED SUCCESS!
+                      DELIVERED!
                     </span>
                     <span className="font-mono text-xs text-[#5c3e0c] truncate max-w-xs">
                       {successFileName}
