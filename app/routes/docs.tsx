@@ -1,0 +1,144 @@
+import type { Route } from "./+types/docs";
+import { BookOpen, Key, Wifi, Terminal, AlertTriangle, ShieldCheck } from "lucide-react";
+
+export function meta({ }: Route.MetaArgs) {
+  return [
+    { title: "Sora - Documentation" },
+    { name: "description", content: "Learn how Sora P2P encrypted file sharing works under the hood." },
+  ];
+}
+
+export default function Docs() {
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* Page Title Header */}
+      <div className="flex items-center gap-3 border-b border-black/10 pb-3">
+        <BookOpen className="w-6 h-6 text-accent" />
+        <h1 className="font-pixel text-xs md:text-sm uppercase tracking-wider text-black">
+          SORA KNOWLEDGE DATABASE & PROTOCOL SPECS
+        </h1>
+      </div>
+
+      {/* Docs Mascot Bulletin */}
+      <div className="card-cream p-4 flex flex-col sm:flex-row items-center gap-4 bg-[#fffbeb] border-2 border-black">
+        <div className="animate-mascot-hover flex-shrink-0 relative">
+          <img
+            src="/sora_mascot_transparent.png"
+            alt="Sora Mascot"
+            className="w-24 h-24 object-contain"
+            style={{ imageRendering: "pixelated" }}
+          />
+        </div>
+        <div className="font-mono text-xs leading-relaxed text-[#3c290c] text-center sm:text-left">
+          <strong>SYSTEM OPERATOR NOTE:</strong> Welcome to the Sora Documentation Terminal. Below is the technical specification breakdown for peer connection establishment, encryption pipelines, and command lines.
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* LEFT COLUMN: GETTING STARTED */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+            <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Wifi className="w-4 h-4 text-blue-900" />
+              1. GETTING STARTED
+            </h2>
+
+            <ol className="list-decimal pl-4 font-mono text-xs text-[#3c290c] flex flex-col gap-3">
+              <li>
+                <strong>Select a File:</strong> Drop any file (up to 1GB limit) into the dotted grid sector on the Home page.
+              </li>
+              <li>
+                <strong>Share the Handshake:</strong> Copy the secure room passcode link generated inside the panel.
+              </li>
+              <li>
+                <strong>Connect Recipients:</strong> Send the copied link directly to the receiver through any message client.
+              </li>
+              <li>
+                <strong>Standby for Stream:</strong> Keep both browser windows active. The network tunnel starts streaming chunks immediately when the receiver joins.
+              </li>
+            </ol>
+
+            <div className="bg-blue-500/10 border border-blue-900/20 p-3 rounded-lg mt-auto text-[11px] font-mono text-[#1a3a5f] leading-relaxed">
+              💡 <strong>Tip:</strong> Transfer speeds are restricted by the lower upload bandwidth of the two peers. Keep tabs active to prevent browser throttle.
+            </div>
+          </div>
+        </div>
+
+        {/* MIDDLE COLUMN: HOW IT WORKS */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+            <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Key className="w-4 h-4 text-emerald-800" />
+              2. HOW IT WORKS
+            </h2>
+
+            <div className="font-mono text-xs text-[#3c290c] flex flex-col gap-3 leading-relaxed">
+              <p>
+                Sora is a decentralized network utility using WebRTC for server-free client file transfers.
+              </p>
+
+              <div>
+                <strong className="text-black block mb-1">A. LOCAL AES-GCM ENCRYPTION</strong>
+                Every shared room generates a 256-bit cryptokey via the browser Web Crypto API. Chunks are encrypted locally in CPU registers before entering the network.
+              </div>
+
+              <div>
+                <strong className="text-black block mb-1">B. URL HASH KEY SEGREGATION</strong>
+                The decryption keys are stored in the URL fragment (the <code>#room!key</code>). Browsers never submit hash fragments to routers or the signaling server, keeping keys strictly peer-side.
+              </div>
+
+              <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-500/10 p-2.5 rounded-lg text-emerald-950 text-[11px]">
+                <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <span>Zero server logs, zero database logs, absolute privacy.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: REFERENCE */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+            <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
+              <Terminal className="w-4 h-4 text-purple-900" />
+              3. CLI REFERENCE
+            </h2>
+
+            <div className="font-mono text-xs text-[#3c290c] flex flex-col gap-3 leading-relaxed">
+              <p>
+                Automate or execute connections using the Sora interactive terminal commands:
+              </p>
+
+              <div className="bg-black/5 p-2 rounded-md font-mono text-[11px] border border-black/10 flex flex-col gap-1.5">
+                <div>
+                  <code className="font-bold text-black">help</code>
+                  <span className="block text-gray-600 pl-2">Display terminal commands.</span>
+                </div>
+                <div>
+                  <code className="font-bold text-black">status</code>
+                  <span className="block text-gray-600 pl-2">Print transfer logs and active peer identifiers.</span>
+                </div>
+                <div>
+                  <code className="font-bold text-black">connect &lt;code&gt;</code>
+                  <span className="block text-gray-600 pl-2">Join a specified room lobby directly.</span>
+                </div>
+                <div>
+                  <code className="font-bold text-black">clear</code>
+                  <span className="block text-gray-600 pl-2">Reset diagnostics log screen buffers.</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 border border-yellow-300 bg-yellow-500/10 p-2.5 rounded-lg text-yellow-950 text-[11px]">
+                <AlertTriangle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />
+                <span>Aborting transfers midway deletes local RAM assembly buffers immediately.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  );
+}

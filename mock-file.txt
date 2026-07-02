@@ -1,0 +1,1 @@
+This is a mock text file for verifying the E2E encrypted P2P transfer capabilities of Tobu. It is highly secure, fast, and completely decentralized. Let's make sure it works!

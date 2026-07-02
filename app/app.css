@@ -1,15 +1,547 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
+@plugin "daisyui";
+
+/* Configure the daisyUI v5 theme */
+@plugin "daisyui/theme" {
+  name: "tobu-pixel";
+  default: true;
+  
+  --color-primary: var(--accent-color);
+  --color-primary-content: var(--accent-text);
+  
+  --color-secondary: #00f0ff;
+  --color-secondary-content: #000000;
+  
+  --color-accent: #39ff14;
+  --color-accent-content: #000000;
+  
+  --color-neutral: var(--panel-blue-bg);
+  --color-neutral-content: #ffffff;
+  
+  --color-base-100: var(--panel-gold-bg);
+  --color-base-200: var(--panel-gold-inset-highlight);
+  --color-base-300: var(--card-cream-bg);
+  --color-base-content: var(--panel-gold-text);
+  
+  --radius-selector: 8px;
+  --radius-toct: 8px;
+  --radius-badge: 4px;
+  --radius-box: 12px;
+}
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: "Share Tech Mono", monospace;
+  --font-mono: "Share Tech Mono", monospace;
+  --font-pixel: "Press Start 2P", system-ui, sans-serif;
+  
+  /* Retro CRT Terminal Animations */
+  @keyframes crt-flicker {
+    0% { opacity: 0.985; }
+    50% { opacity: 1; }
+    100% { opacity: 0.99; }
+  }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+  
+  --animate-crt-flicker: crt-flicker 0.15s infinite;
+  --animate-scanline: scanline 8s linear infinite;
+}
+
+:root {
+  /* Theme Colors - Light (Default) */
+  --bg-hotel: #4a748c;
+  --bg-grid-line: #3d637a;
+  
+  --panel-blue-bg: #2d5069;
+  --panel-blue-inset-highlight: #5989ab;
+  --panel-blue-inset-shadow: #182e3f;
+  
+  --card-cream-bg: #fff8e7;
+  --card-cream-text: #3c290c;
+  --card-cream-inset-highlight: #ffffff;
+  --card-cream-inset-shadow: #d2c6a8;
+
+  --panel-gold-text: #3c290c;
+
+  /* Default Gold Accent values for Light */
+  --panel-gold-bg: #e29d18;
+  --panel-gold-inset-highlight: #ffd54f;
+  --panel-gold-inset-shadow: #8b5c00;
+  
+  --tab-bg: #b7790b;
+  --tab-inset-highlight: #ffd54f;
+  --tab-inset-shadow: #6b4500;
+  
+  --accent-color: #ffca28;
+  --accent-hover: #ffe082;
+  --accent-active: #ffa000;
+  --accent-text: #000000;
+
+  /* Terminal screen details default */
+  --terminal-color: #39ff14;
+  --terminal-glow: rgba(57, 255, 20, 0.4);
+}
+
+/* Accents on Light Mode */
+:root[data-accent="classic-gold"] {
+  --panel-gold-bg: #e29d18;
+  --panel-gold-inset-highlight: #ffd54f;
+  --panel-gold-inset-shadow: #8b5c00;
+  
+  --tab-bg: #b7790b;
+  --tab-inset-highlight: #ffd54f;
+  --tab-inset-shadow: #6b4500;
+  
+  --accent-color: #ffca28;
+  --accent-hover: #ffe082;
+  --accent-active: #ffa000;
+  --accent-text: #000000;
+  
+  --terminal-color: #ffca28;
+  --terminal-glow: rgba(255, 202, 40, 0.4);
+}
+:root[data-accent="cyber-cyan"] {
+  --panel-gold-bg: #00acc1;
+  --panel-gold-inset-highlight: #80deea;
+  --panel-gold-inset-shadow: #006064;
+  
+  --tab-bg: #00838f;
+  --tab-inset-highlight: #80deea;
+  --tab-inset-shadow: #004d40;
+  
+  --accent-color: #00f0ff;
+  --accent-hover: #80f8ff;
+  --accent-active: #00b0cc;
+  --accent-text: #000000;
+  
+  --terminal-color: #00f0ff;
+  --terminal-glow: rgba(0, 240, 255, 0.4);
+}
+:root[data-accent="hacker-green"] {
+  --panel-gold-bg: #43a047;
+  --panel-gold-inset-highlight: #81c784;
+  --panel-gold-inset-shadow: #1b5e20;
+  
+  --tab-bg: #2e7d32;
+  --tab-inset-highlight: #81c784;
+  --tab-inset-shadow: #0e4612;
+  
+  --accent-color: #39ff14;
+  --accent-hover: #8eff7c;
+  --accent-active: #23cc07;
+  --accent-text: #000000;
+  
+  --terminal-color: #39ff14;
+  --terminal-glow: rgba(57, 255, 20, 0.4);
+}
+:root[data-accent="arcade-pink"] {
+  --panel-gold-bg: #d81b60;
+  --panel-gold-inset-highlight: #f48fb1;
+  --panel-gold-inset-shadow: #880e4f;
+  --panel-gold-text: #ffffff;
+  
+  --tab-bg: #ad1457;
+  --tab-inset-highlight: #f48fb1;
+  --tab-inset-shadow: #4a0072;
+  
+  --accent-color: #ff4081;
+  --accent-hover: #ff80ab;
+  --accent-active: #f50057;
+  --accent-text: #ffffff;
+  
+  --terminal-color: #ff4081;
+  --terminal-glow: rgba(255, 64, 129, 0.4);
+}
+:root[data-accent="crimson-red"] {
+  --panel-gold-bg: #e53935;
+  --panel-gold-inset-highlight: #ef9a9a;
+  --panel-gold-inset-shadow: #7f0000;
+  --panel-gold-text: #ffffff;
+  
+  --tab-bg: #c62828;
+  --tab-inset-highlight: #ef9a9a;
+  --tab-inset-shadow: #5d001e;
+  
+  --accent-color: #e53935;
+  --accent-hover: #ef5350;
+  --accent-active: #c62828;
+  --accent-text: #ffffff;
+  
+  --terminal-color: #e53935;
+  --terminal-glow: rgba(229, 57, 53, 0.4);
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] {
+  --bg-hotel: #12181d;
+  --bg-grid-line: #1c252d;
+  
+  --panel-blue-bg: #1c262e;
+  --panel-blue-inset-highlight: #34434f;
+  --panel-blue-inset-shadow: #0f1519;
+  
+  --card-cream-bg: #22252a;
+  --card-cream-text: #eae6df;
+  --card-cream-inset-highlight: #2f343c;
+  --card-cream-inset-shadow: #15171b;
+  
+  --panel-gold-text: #eae6df;
+
+  /* Default Gold Accent on Dark */
+  --panel-gold-bg: #2a2012;
+  --panel-gold-inset-highlight: #55442b;
+  --panel-gold-inset-shadow: #18120a;
+  
+  --tab-bg: #1f170c;
+  --tab-inset-highlight: #45341d;
+  --tab-inset-shadow: #0a0704;
+  
+  --accent-color: #ffca28;
+  --accent-hover: #ffe082;
+  --accent-active: #ffa000;
+  --accent-text: #000000;
+
+  --terminal-color: #ffca28;
+  --terminal-glow: rgba(255, 202, 40, 0.4);
+}
+
+/* Accents on Dark Mode */
+[data-theme="dark"][data-accent="cyber-cyan"] {
+  --panel-gold-bg: #0c2b30;
+  --panel-gold-inset-highlight: #1a4f56;
+  --panel-gold-inset-shadow: #041215;
+  
+  --tab-bg: #071f22;
+  --tab-inset-highlight: #133a3e;
+  --tab-inset-shadow: #020708;
+  
+  --accent-color: #00f0ff;
+  --accent-hover: #80f8ff;
+  --accent-active: #00b0cc;
+  --accent-text: #000000;
+  
+  --terminal-color: #00f0ff;
+  --terminal-glow: rgba(0, 240, 255, 0.4);
+}
+[data-theme="dark"][data-accent="hacker-green"] {
+  --panel-gold-bg: #0d2c14;
+  --panel-gold-inset-highlight: #1a5226;
+  --panel-gold-inset-shadow: #041408;
+  
+  --tab-bg: #081d0d;
+  --tab-inset-highlight: #113c1c;
+  --tab-inset-shadow: #020904;
+  
+  --accent-color: #39ff14;
+  --accent-hover: #8eff7c;
+  --accent-active: #23cc07;
+  --accent-text: #000000;
+  
+  --terminal-color: #39ff14;
+  --terminal-glow: rgba(57, 255, 20, 0.4);
+}
+[data-theme="dark"][data-accent="arcade-pink"] {
+  --panel-gold-bg: #2e111c;
+  --panel-gold-inset-highlight: #542236;
+  --panel-gold-inset-shadow: #15060b;
+  
+  --tab-bg: #1f0b13;
+  --tab-inset-highlight: #3c1827;
+  --tab-inset-shadow: #0a0305;
+  
+  --accent-color: #ff4081;
+  --accent-hover: #ff80ab;
+  --accent-active: #f50057;
+  --accent-text: #ffffff;
+  
+  --terminal-color: #ff4081;
+  --terminal-glow: rgba(255, 64, 129, 0.4);
+}
+[data-theme="dark"][data-accent="crimson-red"] {
+  --panel-gold-bg: #320f0f;
+  --panel-gold-inset-highlight: #5c2020;
+  --panel-gold-inset-shadow: #160606;
+  
+  --tab-bg: #210a0a;
+  --tab-inset-highlight: #431717;
+  --tab-inset-shadow: #0a0303;
+  
+  --accent-color: #e53935;
+  --accent-hover: #ef5350;
+  --accent-active: #c62828;
+  --accent-text: #ffffff;
+  
+  --terminal-color: #e53935;
+  --terminal-glow: rgba(229, 57, 53, 0.4);
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  /* 2000s Web Grid Tiled Background */
+  background-color: var(--bg-hotel);
+  background-image: 
+    linear-gradient(90deg, var(--bg-grid-line) 1px, transparent 1px),
+    linear-gradient(var(--bg-grid-line) 1px, transparent 1px);
+  background-size: 16px 16px;
+  color: var(--panel-gold-text);
+  font-family: "Share Tech Mono", monospace;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  min-height: 100vh;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+/* Habbo Logo Style */
+@utility habbo-logo {
+  font-family: "Press Start 2P", system-ui;
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff000;
+  text-shadow:
+    -3px -3px 0 #000,  
+     3px -3px 0 #000,
+    -3px  3px 0 #000,
+     3px  3px 0 #000,
+     4px  4px 0 #855500,
+     5px  5px 0 #855500,
+     6px  6px 0 #000;
+  letter-spacing: -2px;
+}
+
+/* Custom pixel utility classes */
+@utility border-pixel {
+  border: 3px solid #000000;
+}
+
+@utility border-pixel-double {
+  border: 3px solid #000000;
+  box-shadow: inset 2px 2px 0px #ffffff, inset -2px -2px 0px rgba(0, 0, 0, 0.2);
+}
+
+@utility shadow-pixel {
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+
+/* Custom panels */
+@utility panel-gold {
+  background-color: var(--panel-gold-bg);
+  color: var(--panel-gold-text);
+  border: 3px solid #000000;
+  border-radius: 20px;
+  box-shadow: 
+    inset 2px 2px 0px var(--panel-gold-inset-highlight), 
+    inset -2px -2px 0px var(--panel-gold-inset-shadow),
+    5px 5px 0px rgba(0,0,0,0.15);
+}
+
+@utility panel-blue {
+  background-color: var(--panel-blue-bg);
+  color: #ffffff;
+  border: 3px solid #000000;
+  border-radius: 16px;
+  box-shadow: 
+    inset 2px 2px 0px var(--panel-blue-inset-highlight), 
+    inset -2px -2px 0px var(--panel-blue-inset-shadow),
+    4px 4px 0px rgba(0,0,0,0.15);
+}
+
+@utility card-cream {
+  background-color: var(--card-cream-bg);
+  color: var(--card-cream-text);
+  border: 2px solid #000000;
+  border-radius: 12px;
+  box-shadow: 
+    inset 1px 1px 0px var(--card-cream-inset-highlight),
+    inset -1px -1px 0px var(--card-cream-inset-shadow),
+    3px 3px 0px rgba(0,0,0,0.1);
+}
+
+/* Folder Tabs */
+@utility tab-folder {
+  font-family: "Press Start 2P", system-ui;
+  font-size: 9px;
+  border: 3px solid #000000;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 16px;
+  color: #ffffff;
+  background-color: var(--tab-bg);
+  box-shadow: inset 2px 2px 0px var(--tab-inset-highlight), inset -2px 0px 0px var(--tab-inset-shadow);
+  cursor: pointer;
+  position: relative;
+  bottom: -3px;
+  z-index: 10;
+  transition: all 0.08s ease;
+
+  &:hover {
+    background-color: var(--accent-color);
+    color: var(--accent-text);
+    box-shadow: inset 2px 2px 0px #ffffff, inset -2px 0px 0px var(--tab-inset-shadow);
   }
+}
+
+@utility tab-folder-active {
+  background-color: var(--panel-gold-bg);
+  color: var(--panel-gold-text);
+  border-bottom: 3px solid var(--panel-gold-bg);
+  z-index: 20;
+  box-shadow: inset 2px 2px 0px var(--panel-gold-inset-highlight);
+  pointer-events: none;
+}
+
+/* Retro buttons with expressive clicks */
+@utility btn-retro {
+  font-family: "Press Start 2P", system-ui;
+  font-size: 9px;
+  border: 3px solid #000000;
+  border-radius: 8px;
+  box-shadow: 
+    inset 2px 2px 0px #ffffff, 
+    inset -2px -2px 0px rgba(0,0,0,0.2),
+    3px 3px 0px rgba(0,0,0,0.15);
+  transition: all 0.07s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  background-color: var(--accent-color);
+  color: var(--accent-text);
+  user-select: none;
+
+  &:hover {
+    background-color: var(--accent-hover);
+    transform: translate(1px, 1px);
+    box-shadow: 
+      inset 2px 2px 0px #ffffff, 
+      inset -2px -2px 0px rgba(0,0,0,0.15),
+      2px 2px 0px rgba(0,0,0,0.15);
+  }
+
+  &:active {
+    background-color: var(--accent-active);
+    transform: translate(3px, 3px);
+    box-shadow: 
+      inset 1px 1px 0px rgba(0,0,0,0.3),
+      0px 0px 0px rgba(0,0,0,0.15);
+  }
+}
+
+@utility btn-retro-accent {
+  background-color: #4caf50;
+  color: #ffffff;
+  
+  &:hover {
+    background-color: #81c784;
+  }
+  &:active {
+    background-color: #388e3c;
+  }
+}
+
+@utility btn-retro-secondary {
+  background-color: #00897b;
+  color: #ffffff;
+  
+  &:hover {
+    background-color: #26a69a;
+  }
+  &:active {
+    background-color: #00695c;
+  }
+}
+
+@utility btn-retro-neutral {
+  background-color: #78909c;
+  color: #ffffff;
+  
+  &:hover {
+    background-color: #b0bec5;
+  }
+  &:active {
+    background-color: #455a64;
+  }
+}
+
+@utility btn-retro-error {
+  background-color: #e53935;
+  color: #ffffff;
+  
+  &:hover {
+    background-color: #ef5350;
+  }
+  &:active {
+    background-color: #c62828;
+  }
+}
+
+/* CRT Screen Utilities */
+@utility crt-screen {
+  position: relative;
+  overflow: hidden;
+  background-color: #0c140d;
+  color: var(--terminal-color);
+  text-shadow: 0 0 3px var(--terminal-glow);
+  animation: crt-flicker 0.18s infinite;
+  border: 3px solid #000000;
+  border-radius: 8px;
+
+  &::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+    z-index: 10;
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+  }
+}
+
+@utility crt-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--terminal-glow) 10%, rgba(0, 0, 0, 0) 20%);
+  background-size: 100% 500px;
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Mascot flight and flames */
+@keyframes mascot-flight {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.9; }
+  50% { transform: scaleY(1.3) scaleX(0.9); opacity: 1; }
+}
+
+@utility animate-mascot-hover {
+  animation: mascot-flight 2s ease-in-out infinite;
+}
+
+@utility animate-flame {
+  animation: flame-flicker 0.15s ease-in-out infinite;
+}
+
+/* Accordion expand/collapse transition */
+@utility faq-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+  opacity: 0;
+}
+
+@utility faq-expand {
+  grid-template-rows: 1fr;
+  opacity: 1;
 }
