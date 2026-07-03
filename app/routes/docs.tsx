@@ -1,5 +1,5 @@
 import type { Route } from "./+types/docs";
-import { BookOpen, Key, Wifi, Terminal, AlertTriangle, ShieldCheck } from "lucide-react";
+import { BookOpen, Key, Wifi, Terminal, AlertTriangle, ShieldCheck, Zap } from "lucide-react";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -20,26 +20,11 @@ export default function Docs() {
         </h1>
       </div>
 
-      {/* Docs Mascot Bulletin */}
-      <div className="card-cream p-4 flex flex-col sm:flex-row items-center gap-4 bg-[#fffbeb] border-2 border-black">
-        <div className="animate-mascot-hover flex-shrink-0 relative">
-          <img
-            src="/sora_mascot_transparent.png"
-            alt="Sora Mascot"
-            className="w-24 h-24 object-contain"
-            style={{ imageRendering: "pixelated" }}
-          />
-        </div>
-        <div className="font-mono text-xs leading-relaxed text-[#3c290c] text-center sm:text-left">
-          <strong>SYSTEM OPERATOR NOTE:</strong> Welcome to the Sora Documentation Terminal. Below is the technical specification breakdown for peer connection establishment, encryption pipelines, and command lines.
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* LEFT COLUMN: GETTING STARTED */}
         <div className="lg:col-span-1 flex flex-col gap-4">
-          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[420px]">
             <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
               <Wifi className="w-4 h-4 text-blue-900" />
               1. GETTING STARTED
@@ -47,13 +32,13 @@ export default function Docs() {
 
             <ol className="list-decimal pl-4 font-mono text-xs text-[#3c290c] flex flex-col gap-3">
               <li>
-                <strong>Select a File:</strong> Drop any file (up to 1GB limit) into the dotted grid sector on the Home page.
+                <strong>Select a File or Folder:</strong> Drag any file (up to 1GB limit), choose multiple files, or click <em>Select Folder</em> to compress directories on-the-fly into a zip archive inside your browser.
               </li>
               <li>
-                <strong>Share the Handshake:</strong> Copy the secure room passcode link generated inside the panel.
+                <strong>Share the Handshake:</strong> Copy the secure room passcode link or open the QR Handshake modal.
               </li>
               <li>
-                <strong>Connect Recipients:</strong> Send the copied link directly to the receiver through any message client.
+                <strong>Connect Recipients:</strong> Share the code or QR link with the receiver. Or let them scan it directly on mobile.
               </li>
               <li>
                 <strong>Standby for Stream:</strong> Keep both browser windows active. The network tunnel starts streaming chunks immediately when the receiver joins.
@@ -68,30 +53,46 @@ export default function Docs() {
 
         {/* MIDDLE COLUMN: HOW IT WORKS */}
         <div className="lg:col-span-1 flex flex-col gap-4">
-          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[420px]">
             <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
               <Key className="w-4 h-4 text-emerald-800" />
               2. HOW IT WORKS
             </h2>
 
-            <div className="font-mono text-xs text-[#3c290c] flex flex-col gap-3 leading-relaxed">
-              <p>
-                Sora is a decentralized network utility using WebRTC for server-free client file transfers.
-              </p>
-
+            <div className="font-mono text-xs text-[#3c290c] flex flex-col gap-2.5 leading-relaxed overflow-y-auto max-h-[400px] scrollbar-none pr-1">
               <div>
-                <strong className="text-black block mb-1">A. LOCAL AES-GCM ENCRYPTION</strong>
+                <strong className="text-black block mb-0.5">A. LOCAL AES-GCM ENCRYPTION</strong>
                 Every shared room generates a 256-bit cryptokey via the browser Web Crypto API. Chunks are encrypted locally in CPU registers before entering the network.
               </div>
 
               <div>
-                <strong className="text-black block mb-1">B. URL HASH KEY SEGREGATION</strong>
-                The decryption keys are stored in the URL fragment (the <code>#room!key</code>). Browsers never submit hash fragments to routers or the signaling server, keeping keys strictly peer-side.
+                <strong className="text-black block mb-0.5">B. URL HASH KEY SEGREGATION</strong>
+                Decryption keys are stored in the URL fragment (the <code>#room!key</code>). Browsers never submit hash fragments to routers or the signaling server, keeping keys strictly peer-side.
               </div>
 
-              <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-500/10 p-2.5 rounded-lg text-emerald-950 text-[11px]">
+              <div>
+                <strong className="text-black block mb-0.5">C. ECDH PASSCODE HANDSHAKES</strong>
+                Manual 6-digit passcode entrances without link hashes initiate an **Elliptic-Curve Diffie-Hellman (P-256)** key-exchange over signaling websockets. This derives a strong shared secret key dynamically, preserving absolute forward secrecy.
+              </div>
+
+              <div>
+                <strong className="text-black block mb-0.5">D. RESUMABLE CHUNKING</strong>
+                Sora supports interactive offset handshakes. If a connection drops, the receiver preserves its packet buffer, negotiates the exact byte offset it left off on, and resumes instantly on handshake restoration.
+              </div>
+
+              <div>
+                <strong className="text-black block mb-0.5">E. SHA-256 INTEGRITY VERIFICATION</strong>
+                Files are client-side hashed before transmission. To protect memory, large files (&gt;100MB) hash the start/end 10MB ranges. The receiver recalculates and verifies this checksum to guarantee block-perfect files.
+              </div>
+
+              <div>
+                <strong className="text-black block mb-0.5">F. 8-BIT AUDIO SYNTHESIS</strong>
+                All user feedback (chimes, ticks, handshakes, level-up completions) is generated dynamically on-the-fly using the HTML5 Web Audio API, synthesizing classic sine and square wave vintage oscillators.
+              </div>
+
+              <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-500/10 p-2.5 rounded-lg text-emerald-950 text-[11px] mt-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" />
-                <span>Zero server logs, zero database logs, absolute privacy.</span>
+                <span>Zero server logs, zero database logs, absolute E2E privacy.</span>
               </div>
             </div>
           </div>
@@ -99,7 +100,7 @@ export default function Docs() {
 
         {/* RIGHT COLUMN: REFERENCE */}
         <div className="lg:col-span-1 flex flex-col gap-4">
-          <div className="card-cream p-4 flex flex-col gap-3 min-h-[350px]">
+          <div className="card-cream p-4 flex flex-col gap-3 min-h-[420px]">
             <h2 className="font-pixel text-[9px] text-[#3c290c] border-b border-black/10 pb-2 uppercase tracking-wider flex items-center gap-1.5">
               <Terminal className="w-4 h-4 text-purple-900" />
               3. CLI REFERENCE
@@ -122,6 +123,14 @@ export default function Docs() {
                 <div>
                   <code className="font-bold text-black">connect &lt;code&gt;</code>
                   <span className="block text-gray-600 pl-2">Join a specified room lobby directly.</span>
+                </div>
+                <div>
+                  <code className="font-bold text-black">disconnect</code>
+                  <span className="block text-gray-600 pl-2">Abort current transfer/connection.</span>
+                </div>
+                <div>
+                  <code className="font-bold text-black">history</code>
+                  <span className="block text-gray-600 pl-2">Display past transfer history logsheet.</span>
                 </div>
                 <div>
                   <code className="font-bold text-black">clear</code>

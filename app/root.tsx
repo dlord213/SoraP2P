@@ -12,6 +12,8 @@ import "./app.css";
 import { AppContextProvider, useApp } from "./context/AppContext";
 import { AlertTriangle, AlertCircle, X, ShieldAlert, Cpu } from "lucide-react";
 import { useState, useEffect } from "react";
+import { sfx } from "./utils/audio";
+import { MascotMoji } from "./components/MascotMoji";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -64,6 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 function AppShell() {
   const {
     connectionStatus,
+    currentTransfer,
     errorMessage,
     setErrorMessage,
     hasWeakKey,
@@ -73,6 +76,15 @@ function AppShell() {
     accent,
     setAccent
   } = useApp();
+
+  const getMascotStatus = () => {
+    if (connectionStatus === "connecting") return "connecting";
+    if (connectionStatus === "connected") {
+      return currentTransfer ? "transferring" : "idle";
+    }
+    if (connectionStatus === "failed" || connectionStatus === "disconnected") return "failed";
+    return "idle";
+  };
   const [mounted, setMounted] = useState(false);
   const [modalType, setModalType] = useState<"privacy" | "terms" | null>(null);
 
@@ -130,7 +142,7 @@ function AppShell() {
         {/* Left Column Logo */}
         <div className="w-full md:w-64 flex flex-col justify-center items-center md:items-start p-2">
           <div className="flex items-center gap-2 mb-1">
-            <img src="/sora_mascot_transparent.png" alt="Sora Mascot" className="w-24 h-24 object-contain select-none" style={{ imageRendering: "pixelated" }} />
+            <MascotMoji status={getMascotStatus()} size={96} />
             <div className="habbo-logo mb-0">SORA</div>
           </div>
           <span className="text-[10px] font-pixel text-white opacity-85">
@@ -180,14 +192,14 @@ function AppShell() {
               </span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setTheme("light")}
+                  onClick={() => { sfx.playClick(); setTheme("light"); }}
                   className={`btn-retro flex-1 py-1 px-2 text-center text-[8px] ${theme === "light" ? "border-white bg-[#ffd54f] text-black" : "opacity-75 hover:opacity-100"
                     }`}
                 >
                   LIGHT
                 </button>
                 <button
-                  onClick={() => setTheme("dark")}
+                  onClick={() => { sfx.playClick(); setTheme("dark"); }}
                   className={`btn-retro flex-1 py-1 px-2 text-center text-[8px] ${theme === "dark" ? "border-white bg-[#ffd54f] text-black" : "opacity-75 hover:opacity-100"
                     }`}
                 >
@@ -212,7 +224,7 @@ function AppShell() {
                   <button
                     key={acc.id}
                     title={acc.name}
-                    onClick={() => setAccent(acc.id as any)}
+                    onClick={() => { sfx.playClick(); setAccent(acc.id as any); }}
                     className={`w-6 h-6 border-2 border-black cursor-pointer transition-all ${acc.color} ${accent === acc.id
                       ? "ring-2 ring-white scale-110 shadow-[inset_0_0_0_2px_#000]"
                       : "opacity-75 hover:opacity-100 hover:scale-105"
@@ -280,6 +292,7 @@ function AppShell() {
           <div className="flex justify-start gap-1 px-4 z-10 relative top-[3px] select-none overflow-x-auto scrollbar-none">
             <NavLink
               to="/"
+              onClick={() => sfx.playClick()}
               className={({ isActive }) =>
                 `tab-folder ${isActive ? "tab-folder-active" : ""}`
               }
@@ -288,6 +301,7 @@ function AppShell() {
             </NavLink>
             <NavLink
               to="/history"
+              onClick={() => sfx.playClick()}
               className={({ isActive }) =>
                 `tab-folder ${isActive ? "tab-folder-active" : ""}`
               }
@@ -296,6 +310,7 @@ function AppShell() {
             </NavLink>
             <NavLink
               to="/cli"
+              onClick={() => sfx.playClick()}
               className={({ isActive }) =>
                 `tab-folder ${isActive ? "tab-folder-active" : ""}`
               }
@@ -304,6 +319,7 @@ function AppShell() {
             </NavLink>
             <NavLink
               to="/docs"
+              onClick={() => sfx.playClick()}
               className={({ isActive }) =>
                 `tab-folder ${isActive ? "tab-folder-active" : ""}`
               }
@@ -325,14 +341,14 @@ function AppShell() {
         <div>All rights including trademarks, copyright, and database rights in this website are owned by mirimomekiku</div>
         <div className="mt-2 text-[10px]">
           <button
-            onClick={() => setModalType("terms")}
+            onClick={() => { sfx.playClick(); setModalType("terms"); }}
             className="underline hover:text-white cursor-pointer select-none focus:outline-none"
           >
             Terms & Conditions
           </button>
           {" | "}
           <button
-            onClick={() => setModalType("privacy")}
+            onClick={() => { sfx.playClick(); setModalType("privacy"); }}
             className="underline hover:text-white cursor-pointer select-none focus:outline-none"
           >
             Privacy Policy
@@ -352,7 +368,7 @@ function AppShell() {
                 {modalType === "privacy" ? "SORA HOTEL - PRIVACY POLICY" : "SORA HOTEL - TERMS & CONDITIONS"}
               </span>
               <button
-                onClick={() => setModalType(null)}
+                onClick={() => { sfx.playClick(); setModalType(null); }}
                 className="font-pixel text-[9px] text-white hover:text-red-300 cursor-pointer focus:outline-none"
               >
                 [X]

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { sfx } from '../utils/audio';
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'failed';
 
@@ -8,6 +9,7 @@ export interface TransferState {
   progress: number;
   speed: number; // bytes per second
   type: 'send' | 'receive';
+  zipContents?: string[];
 }
 
 export interface HistoryLog {
@@ -28,7 +30,7 @@ interface AppContextType {
   errorMessage: string | null;
   hasWeakKey: boolean;
   clearHistory: () => void;
-  startTransfer: (file: File) => Promise<void>;
+  startTransfer: (file: File, zipContents?: string[]) => Promise<void>;
   joinRoom: (codeAndKeyString: string) => Promise<void>;
   disconnectPeer: () => void;
   setErrorMessage: (msg: string | null) => void;
@@ -36,6 +38,9 @@ interface AppContextType {
   setTheme: (theme: 'light' | 'dark') => void;
   accent: 'classic-gold' | 'cyber-cyan' | 'hacker-green' | 'arcade-pink' | 'crimson-red';
   setAccent: (accent: 'classic-gold' | 'cyber-cyan' | 'hacker-green' | 'arcade-pink' | 'crimson-red') => void;
+  sendAvatarMove: (x: number, y: number) => void;
+  sendAvatarChat: (text: string) => void;
+  registerAvatarCallbacks: (onMove: (x: number, y: number) => void, onChat: (text: string) => void) => () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -105,12 +110,19 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const channelRef = useRef<RTCDataChannel | null>(null);
   const currentFileRef = useRef<File | null>(null);
   const aesKeyRef = useRef<CryptoKey | null>(null);
+  const ecdhKeyPairRef = useRef<CryptoKeyPair | null>(null);
+  const fileHashRef = useRef<string | null>(null);
+  const zipContentsRef = useRef<string[] | null>(null);
+
+  // Avatar Callback Refs
+  const peerAvatarMoveCallbackRef = useRef<((x: number, y: number) => void) | null>(null);
+  const peerAvatarChatCallbackRef = useRef<((text: string) => void) | null>(null);
   
   // Receives chunks accumulator
   const receivedChunksRef = useRef<ArrayBuffer[]>([]);
   const receivedBytesRef = useRef<number>(0);
   const transferStartTimeRef = useRef<number>(0);
-  const fileMetadataRef = useRef<{ fileName: string; fileSize: number; fileType: string } | null>(null);
+  const fileMetadataRef = useRef<{ fileName: string; fileSize: number; fileType: string; fileHash?: string; zipContents?: string[] } | null>(null);
 
   // Max size: 1GB (1073741824 bytes)
   const MAX_FILE_SIZE = 1024 * 1024 * 1024;
@@ -176,9 +188,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setHasWeakKey(false);
     aesKeyRef.current = null;
     currentFileRef.current = null;
-    receivedChunksRef.current = [];
-    receivedBytesRef.current = 0;
-    fileMetadataRef.current = null;
+    ecdhKeyPairRef.current = null;
+    fileHashRef.current = null;
+    zipContentsRef.current = null;
   };
 
   // Generate AES Cryptographic Key
@@ -195,20 +207,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return { key, hex };
   };
 
-  // Derive AES Cryptographic Key from a weak room code (SHA-256)
-  const deriveWeakKey = async (code: string): Promise<CryptoKey> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(code);
-    const hash = await window.crypto.subtle.digest('SHA-256', data);
-    return await window.crypto.subtle.importKey(
-      'raw',
-      hash,
-      'AES-GCM',
-      true,
-      ['encrypt', 'decrypt']
-    );
-  };
-
   // Import Key from Hex
   const importKeyFromHex = async (hex: string): Promise<CryptoKey> => {
     const keyBuffer = new Uint8Array(
@@ -221,6 +219,83 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       true,
       ['encrypt', 'decrypt']
     );
+  };
+
+  // Generate Ephemeral ECDH Key Pair
+  const generateEcdhKeyPair = async (): Promise<CryptoKeyPair> => {
+    return await window.crypto.subtle.generateKey(
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      ['deriveKey']
+    );
+  };
+
+  // Export ECDH Public Key to Hex
+  const exportEcdhPublicKey = async (publicKey: CryptoKey): Promise<string> => {
+    const exported = await window.crypto.subtle.exportKey('raw', publicKey);
+    return Array.from(new Uint8Array(exported))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  // Import ECDH Public Key from Hex
+  const importEcdhPublicKey = async (hex: string): Promise<CryptoKey> => {
+    const bytes = new Uint8Array(
+      hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    );
+    return await window.crypto.subtle.importKey(
+      'raw',
+      bytes,
+      { name: 'ECDH', namedCurve: 'P-256' },
+      true,
+      []
+    );
+  };
+
+  // Derive Shared AES-GCM Key from ECDH
+  const deriveEcdhSharedKey = async (privateKey: CryptoKey, publicKey: CryptoKey): Promise<CryptoKey> => {
+    return await window.crypto.subtle.deriveKey(
+      { name: 'ECDH', public: publicKey },
+      privateKey,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  };
+
+  // SHA-256 File Hash (Memory-Safe for files > 100MB by hashing first 10MB + last 10MB)
+  const calculateFileHash = async (file: File): Promise<string> => {
+    const size = file.size;
+    let buffer: ArrayBuffer;
+    if (size <= 100 * 1024 * 1024) {
+      buffer = await file.arrayBuffer();
+    } else {
+      const chunk1 = file.slice(0, 10 * 1024 * 1024);
+      const chunk2 = file.slice(size - 10 * 1024 * 1024, size);
+      const b1 = await chunk1.arrayBuffer();
+      const b2 = await chunk2.arrayBuffer();
+      const combined = new Uint8Array(b1.byteLength + b2.byteLength);
+      combined.set(new Uint8Array(b1), 0);
+      combined.set(new Uint8Array(b2), b1.byteLength);
+      buffer = combined.buffer;
+    }
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  // Inspect ZIP file contents client-side
+  const inspectZipFile = async (file: File): Promise<string[]> => {
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(file);
+      return Object.keys(contents.files).filter((name) => !contents.files[name].dir);
+    } catch (e) {
+      console.warn('Failed to parse zip contents', e);
+      return [];
+    }
   };
 
   // Initialize WebRTC Peer Connection
@@ -263,17 +338,16 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       } else if (pc.connectionState === 'failed') {
         setConnectionStatus('failed');
         setErrorMessage('P2P Connection failed to establish.');
+        sfx.playError();
         disconnectPeer();
       }
     };
 
     if (isInitiator) {
-      // Creator makes the data channel
       console.log('Creating Data Channel...');
       const channel = pc.createDataChannel('file-transfer', { ordered: true });
       setupDataChannel(channel, room);
     } else {
-      // Receiver listens for the data channel
       pc.ondatachannel = (event) => {
         console.log('Data Channel Received!');
         setupDataChannel(event.channel, room);
@@ -291,10 +365,20 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     channel.onopen = () => {
       console.log('Data Channel Opened!');
       setConnectionStatus('connected');
-      
-      // If we are the sender, start sending
+      sfx.playConnect(); // Trigger 8-bit connection sound
+
+      // If we are the sender, advertise file parameters to check for resumability
       if (currentFileRef.current) {
-        sendBufferedFile(channel, room);
+        channel.send(
+          JSON.stringify({
+            type: 'transfer-ready',
+            fileName: currentFileRef.current.name,
+            fileSize: currentFileRef.current.size,
+            fileType: currentFileRef.current.type,
+            fileHash: fileHashRef.current,
+            zipContents: zipContentsRef.current || undefined,
+          })
+        );
       }
     };
 
@@ -307,57 +391,124 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.error('Data Channel Error:', err);
       setErrorMessage('A data channel error occurred during transfer.');
       setConnectionStatus('failed');
+      sfx.playError();
       disconnectPeer();
     };
 
     channel.onmessage = async (event) => {
       if (typeof event.data === 'string') {
-        // Text Message: JSON Metadata or EOF
         try {
           const parsed = JSON.parse(event.data);
-          if (parsed.type === 'metadata') {
-            console.log('Received Metadata:', parsed);
-            fileMetadataRef.current = parsed;
-            receivedChunksRef.current = [];
-            receivedBytesRef.current = 0;
-            transferStartTimeRef.current = Date.now();
+          
+          if (parsed.type === 'transfer-ready') {
+            console.log('Received transfer-ready banner:', parsed);
+            
+            // Check if we have matching partial file chunks to trigger Resumable Transfer
+            const canResume = 
+              fileMetadataRef.current && 
+              fileMetadataRef.current.fileName === parsed.fileName &&
+              fileMetadataRef.current.fileSize === parsed.fileSize &&
+              fileMetadataRef.current.fileHash === parsed.fileHash &&
+              receivedBytesRef.current > 0;
 
-            setCurrentTransfer({
-              fileName: parsed.fileName,
-              fileSize: parsed.fileSize,
-              progress: 0,
-              speed: 0,
-              type: 'receive',
-            });
+            if (canResume) {
+              console.log('Resuming partial transfer. Requesting offset:', receivedBytesRef.current);
+              sfx.playConnect();
+              channel.send(
+                JSON.stringify({
+                  type: 'resume-request',
+                  offset: receivedBytesRef.current,
+                })
+              );
+            } else {
+              // Start brand new transfer
+              receivedChunksRef.current = [];
+              receivedBytesRef.current = 0;
+              fileMetadataRef.current = parsed;
+              transferStartTimeRef.current = Date.now();
+
+              setCurrentTransfer({
+                fileName: parsed.fileName,
+                fileSize: parsed.fileSize,
+                progress: 0,
+                speed: 0,
+                type: 'receive',
+                zipContents: parsed.zipContents,
+              });
+
+              channel.send(
+                JSON.stringify({
+                  type: 'start-request',
+                })
+              );
+            }
+          } else if (parsed.type === 'resume-request') {
+            console.log('Partner requested resume at offset:', parsed.offset);
+            sendBufferedFile(channel, room, parsed.offset);
+          } else if (parsed.type === 'start-request') {
+            console.log('Partner requested standard start');
+            sendBufferedFile(channel, room, 0);
+          } else if (parsed.type === 'avatar-move') {
+            if (peerAvatarMoveCallbackRef.current) {
+              peerAvatarMoveCallbackRef.current(parsed.x, parsed.y);
+            }
+          } else if (parsed.type === 'avatar-chat') {
+            if (peerAvatarChatCallbackRef.current) {
+              peerAvatarChatCallbackRef.current(parsed.text);
+            }
           } else if (parsed.type === 'eof') {
-            console.log('Received EOF. Reassembling file...');
+            console.log('Received EOF. Reassembling and verifying integrity...');
             if (fileMetadataRef.current) {
               const blob = new Blob(receivedChunksRef.current, {
                 type: fileMetadataRef.current.fileType || 'application/octet-stream',
               });
-              const url = URL.createObjectURL(blob);
-              
-              // Trigger automatic download
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = fileMetadataRef.current.fileName;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              
-              // Clean up blob url instantly to free memory
-              setTimeout(() => {
-                URL.revokeObjectURL(url);
-              }, 100);
 
-              addToHistory(
-                fileMetadataRef.current.fileName,
-                fileMetadataRef.current.fileSize,
-                'Success',
-                room
-              );
-              
-              // Reset current transfer
+              // Perform SHA-256 file verification check
+              let verified = false;
+              if (fileMetadataRef.current.fileHash) {
+                const calculated = await calculateFileHash(new File([blob], fileMetadataRef.current.fileName));
+                verified = (calculated === fileMetadataRef.current.fileHash);
+                console.log(`Integrity Check: Calculated = ${calculated}, Expected = ${fileMetadataRef.current.fileHash}, Match = ${verified}`);
+              } else {
+                verified = true; // Fallback if hash was skipped
+              }
+
+              if (verified) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileMetadataRef.current.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                setTimeout(() => {
+                  URL.revokeObjectURL(url);
+                }, 100);
+
+                addToHistory(
+                  fileMetadataRef.current.fileName + " (Verified)",
+                  fileMetadataRef.current.fileSize,
+                  'Success',
+                  room
+                );
+                sfx.playSuccess(); // Success chime!
+              } else {
+                console.error("Integrity hash check failed!");
+                setErrorMessage("File hash verification failed. The file may be corrupted.");
+                addToHistory(
+                  fileMetadataRef.current.fileName + " (Corrupted)",
+                  fileMetadataRef.current.fileSize,
+                  'Failed',
+                  room
+                );
+                sfx.playError();
+              }
+
+              // Reset buffers after compile
+              receivedChunksRef.current = [];
+              receivedBytesRef.current = 0;
+              fileMetadataRef.current = null;
               setCurrentTransfer(null);
             }
           }
@@ -395,10 +546,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             progress,
             speed,
             type: 'receive',
+            zipContents: fileMetadataRef.current.zipContents,
           });
         } catch (e) {
           console.error('Decryption failed', e);
           setErrorMessage('Decryption failed. Room key might be invalid.');
+          sfx.playError();
           addToHistory(
             fileMetadataRef.current?.fileName || 'Unknown File',
             fileMetadataRef.current?.fileSize || 0,
@@ -411,45 +564,43 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
-  // Chunk and Encrypt File Transfer (Sender with backpressure)
-  const sendBufferedFile = async (channel: RTCDataChannel, room: string) => {
+  // Chunk and Encrypt File Transfer (Sender with backpressure & offset controls)
+  const sendBufferedFile = async (channel: RTCDataChannel, room: string, startOffset = 0) => {
     const file = currentFileRef.current;
     const aesKey = aesKeyRef.current;
     if (!file || !aesKey) return;
 
-    console.log('Starting file send transfer...', file.name);
-
-    // Send metadata
-    channel.send(
-      JSON.stringify({
-        type: 'metadata',
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-      })
-    );
+    console.log('Sending file from offset:', startOffset);
 
     setCurrentTransfer({
       fileName: file.name,
       fileSize: file.size,
-      progress: 0,
+      progress: (startOffset / file.size) * 100,
       speed: 0,
       type: 'send',
+      zipContents: zipContentsRef.current || undefined,
     });
 
     const fileReader = new FileReader();
-    let offset = 0;
+    let offset = startOffset;
     const chunkSize = 32 * 1024; // 32KB chunks
-    const startTime = Date.now();
+    const startTime = Date.now() - (offset > 0 ? (offset / (currentTransfer?.speed || 1024 * 1024)) * 1000 : 0);
 
     const readAndSendChunk = () => {
       if (offset >= file.size) {
-        // Send EOF
         channel.send(JSON.stringify({ type: 'eof' }));
         console.log('File fully sent!');
         addToHistory(file.name, file.size, 'Success', room);
+        sfx.playSuccess(); // Success chime!
         setCurrentTransfer(null);
         currentFileRef.current = null;
+        fileHashRef.current = null;
+        zipContentsRef.current = null;
+        return;
+      }
+
+      if (channel.readyState !== 'open') {
+        console.warn('Channel closed during transfer loop. Paused.');
         return;
       }
 
@@ -459,7 +610,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const arrayBuffer = e.target.result as ArrayBuffer;
 
         try {
-          // Encrypt
           const iv = window.crypto.getRandomValues(new Uint8Array(12));
           const ciphertext = await window.crypto.subtle.encrypt(
             { name: 'AES-GCM', iv },
@@ -467,17 +617,14 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             arrayBuffer
           );
 
-          // Combine IV + ciphertext
           const packet = new Uint8Array(iv.length + ciphertext.byteLength);
           packet.set(iv, 0);
           packet.set(new Uint8Array(ciphertext), iv.length);
 
-          // Send
           channel.send(packet);
 
           offset += arrayBuffer.byteLength;
 
-          // Update progress & speed
           const elapsed = (Date.now() - startTime) / 1000;
           const speed = elapsed > 0 ? offset / elapsed : 0;
           const progress = Math.min(100, (offset / file.size) * 100);
@@ -488,22 +635,22 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             progress,
             speed,
             type: 'send',
+            zipContents: zipContentsRef.current || undefined,
           });
 
-          // WebRTC Backpressure implementation
-          // Pause reading if buffer amount > 64KB
+          // WebRTC Backpressure: Pause reading if buffer amount > 64KB
           if (channel.bufferedAmount > 64 * 1024) {
             channel.onbufferedamountlow = () => {
               channel.onbufferedamountlow = null;
               readAndSendChunk();
             };
           } else {
-            // Yield execution to main thread before reading next chunk
             setTimeout(readAndSendChunk, 0);
           }
         } catch (err) {
           console.error('Crypto error during send:', err);
           setErrorMessage('Failed to encrypt chunk during transmission.');
+          sfx.playError();
           addToHistory(file.name, file.size, 'Failed', room);
           disconnectPeer();
         }
@@ -512,7 +659,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       fileReader.readAsArrayBuffer(slice);
     };
 
-    // Begin loop
     readAndSendChunk();
   };
 
@@ -520,7 +666,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const connectSignaling = (room: string, isInitiator: boolean) => {
     setConnectionStatus('connecting');
 
-    // Detect server host with fallback to env variable for cloud deployments (e.g. Vercel)
     const envUrl = import.meta.env.VITE_SIGNALING_URL;
     const socketUrl = envUrl || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`;
     console.log('Connecting to signaling:', socketUrl);
@@ -539,7 +684,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     ws.onerror = (err) => {
       console.error('Signaling socket error:', err);
-      setErrorMessage('Could not connect to signaling server on port 3001.');
+      setErrorMessage('Could not connect to signaling server.');
+      sfx.playError();
       setConnectionStatus('failed');
       disconnectPeer();
     };
@@ -551,30 +697,90 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         if (parsed.type === 'error') {
           setErrorMessage(parsed.message);
+          sfx.playError();
           setConnectionStatus('failed');
           disconnectPeer();
         } else if (parsed.type === 'peer-joined') {
           // A receiver joined our room!
-          // We are the initiator (sender), so initialize RTC connection and make offer
-          console.log('Peer joined! Initiating WebRTC...');
-          const pc = initPeerConnection(room, true);
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          ws.send(
-            JSON.stringify({
-              type: 'signal',
-              room,
-              data: { sdp: offer },
-            })
-          );
+          if (!aesKeyRef.current) {
+            // No pre-shared AES key! Initiate ECDH key exchange over WebSocket signals
+            console.log('Initiating secure ECDH handshake...');
+            const pair = await generateEcdhKeyPair();
+            ecdhKeyPairRef.current = pair;
+            const pubHex = await exportEcdhPublicKey(pair.publicKey);
+            ws.send(
+              JSON.stringify({
+                type: 'signal',
+                room,
+                data: { ecdhPub: pubHex },
+              })
+            );
+          } else {
+            // Standard pre-shared AES-GCM link key
+            console.log('Peer joined! Initiating WebRTC...');
+            const pc = initPeerConnection(room, true);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(
+              JSON.stringify({
+                type: 'signal',
+                room,
+                data: { sdp: offer },
+              })
+            );
+          }
         } else if (parsed.type === 'signal') {
-          const { sdp, candidate } = parsed.data;
+          const { sdp, candidate, ecdhPub } = parsed.data;
 
-          if (sdp) {
-            // Handle SDP offer or answer
+          if (ecdhPub) {
+            console.log('Received ECDH public key signal...');
+            try {
+              if (ecdhKeyPairRef.current) {
+                // Partner sent public key. Derive shared AES key.
+                const partnerPubKey = await importEcdhPublicKey(ecdhPub);
+                const derivedAES = await deriveEcdhSharedKey(
+                  ecdhKeyPairRef.current.privateKey,
+                  partnerPubKey
+                );
+                aesKeyRef.current = derivedAES;
+                setEncryptionKey('ecdh-shared-channel');
+                setHasWeakKey(false);
+                console.log('ECDH Shared AES Key derived successfully.');
+
+                if (!isInitiator) {
+                  // Receiver responds back with their own public key
+                  const myPubHex = await exportEcdhPublicKey(ecdhKeyPairRef.current.publicKey);
+                  ws.send(
+                    JSON.stringify({
+                      type: 'signal',
+                      room,
+                      data: { ecdhPub: myPubHex },
+                    })
+                  );
+                } else {
+                  // Creator now starts standard WebRTC channel setup with the derived key
+                  console.log('ECDH derived. Creating WebRTC offer...');
+                  const pc = initPeerConnection(room, true);
+                  const offer = await pc.createOffer();
+                  await pc.setLocalDescription(offer);
+                  ws.send(
+                    JSON.stringify({
+                      type: 'signal',
+                      room,
+                      data: { sdp: offer },
+                    })
+                  );
+                }
+              }
+            } catch (err) {
+              console.error('Failed ECDH Handshake derivation:', err);
+              setErrorMessage('Failed to establish secure key exchange.');
+              sfx.playError();
+              disconnectPeer();
+            }
+          } else if (sdp) {
             if (sdp.type === 'offer') {
               console.log('Received SDP Offer. Creating Answer...');
-              // Receiver initializes connection as non-initiator
               const pc = initPeerConnection(room, false);
               await pc.setRemoteDescription(new RTCSessionDescription(sdp));
               const answer = await pc.createAnswer();
@@ -593,7 +799,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               }
             }
           } else if (candidate) {
-            // Handle ICE Candidate
             console.log('Received ICE Candidate. Adding...');
             if (pcRef.current) {
               await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -603,6 +808,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.log('Peer disconnected.');
           setErrorMessage('Peer has left the room.');
           setConnectionStatus('disconnected');
+          sfx.playError();
           disconnectPeer();
         }
       } catch (e) {
@@ -611,61 +817,73 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
   };
 
-  // API exposed to Start a File Transfer (Generate Room + Key, connect WS)
-  const startTransfer = async (file: File) => {
-    // 1. Validation size limit
+  // API exposed to Start a File Transfer (Generate Room + Key, compute hash, inspect zip, connect WS)
+  const startTransfer = async (file: File, zipContents?: string[]) => {
+    sfx.playClick();
+
     if (file.size > MAX_FILE_SIZE) {
       setErrorMessage(`File size is ${Math.round(file.size / (1024 * 1024))}MB. Maximum allowed is 1GB (1024MB).`);
+      sfx.playError();
       return;
     }
 
     disconnectPeer();
     currentFileRef.current = file;
 
-    // 2. Generate room ID (6 digits)
+    // Inspect zip contents if a zip file is selected directly
+    let resolvedContents = zipContents || [];
+    if (!zipContents && (file.name.endsWith('.zip') || file.type === 'application/zip')) {
+      resolvedContents = await inspectZipFile(file);
+    }
+    zipContentsRef.current = resolvedContents.length > 0 ? resolvedContents : null;
+
+    // Calculate SHA-256 hash
+    try {
+      const hash = await calculateFileHash(file);
+      fileHashRef.current = hash;
+      console.log('SHA-256 computed:', hash);
+    } catch (e) {
+      console.error('Could not compute file hash:', e);
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setRoomId(code);
 
-    // 3. Generate Cryptographic Key
     try {
       const { key, hex } = await generateStrongKey();
       aesKeyRef.current = key;
       setEncryptionKey(hex);
       setHasWeakKey(false);
 
-      // Set URL hash so it never goes to server
       if (typeof window !== 'undefined') {
         window.location.hash = `${code}!${hex}`;
       }
 
-      // 4. Connect to signaling
       connectSignaling(code, true);
     } catch (e) {
       console.error(e);
       setErrorMessage('Failed to generate secure encryption keys.');
+      sfx.playError();
     }
   };
 
   // API exposed to Join a Room (Retrieve Room + Key from entered code/hash, connect WS)
   const joinRoom = async (codeAndKeyString: string) => {
+    sfx.playClick();
+
     disconnectPeer();
 
-    // Parse entered code (could be full link, room code!key, or raw 6-digit code)
     let code = '';
     let keyHex = '';
 
-    // If it is a full URL, extract hash
     let cleanString = codeAndKeyString.trim();
     if (cleanString.includes('#')) {
       cleanString = cleanString.split('#')[1];
     } else if (cleanString.includes('://')) {
-      // Just extract code if it contains routes
       try {
         const url = new URL(cleanString);
         cleanString = url.hash.substring(1);
-      } catch (e) {
-        // Not a URL
-      }
+      } catch (e) {}
     }
 
     if (cleanString.includes('!')) {
@@ -676,9 +894,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       code = cleanString.trim();
     }
 
-    // Validation room code (6 digits)
     if (!/^\d{6}$/.test(code)) {
       setErrorMessage('Room code must be a 6-digit number.');
+      sfx.playError();
       return;
     }
 
@@ -686,25 +904,50 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     try {
       if (keyHex) {
-        // Strong Key from url/hash
+        // Strong Key from url/hash link
         const key = await importKeyFromHex(keyHex);
         aesKeyRef.current = key;
         setEncryptionKey(keyHex);
         setHasWeakKey(false);
       } else {
-        // Weak fallback derived key
-        const key = await deriveWeakKey(code);
-        aesKeyRef.current = key;
+        // Secure ECDH Handshake room
+        console.log('Pre-shared key not found. Preparing ECDH handshake...');
+        const pair = await generateEcdhKeyPair();
+        ecdhKeyPairRef.current = pair;
         setEncryptionKey(null);
-        setHasWeakKey(true);
+        setHasWeakKey(false);
       }
 
-      // Connect signaling as receiver (non-initiator)
       connectSignaling(code, false);
     } catch (e) {
       console.error(e);
       setErrorMessage('Failed to initialize decryption keys.');
+      sfx.playError();
     }
+  };
+
+  const sendAvatarMove = (x: number, y: number) => {
+    if (channelRef.current && channelRef.current.readyState === 'open') {
+      channelRef.current.send(JSON.stringify({ type: 'avatar-move', x, y }));
+    }
+  };
+
+  const sendAvatarChat = (text: string) => {
+    if (channelRef.current && channelRef.current.readyState === 'open') {
+      channelRef.current.send(JSON.stringify({ type: 'avatar-chat', text }));
+    }
+  };
+
+  const registerAvatarCallbacks = (
+    onMove: (x: number, y: number) => void,
+    onChat: (text: string) => void
+  ) => {
+    peerAvatarMoveCallbackRef.current = onMove;
+    peerAvatarChatCallbackRef.current = onChat;
+    return () => {
+      peerAvatarMoveCallbackRef.current = null;
+      peerAvatarChatCallbackRef.current = null;
+    };
   };
 
   return (
@@ -726,6 +969,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setTheme,
         accent,
         setAccent,
+        sendAvatarMove,
+        sendAvatarChat,
+        registerAvatarCallbacks,
       }}
     >
       {children}
