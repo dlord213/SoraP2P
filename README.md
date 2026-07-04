@@ -1,6 +1,6 @@
 # Sora P2P — Secure End-to-End Encrypted File Transfer
 
-Sora (**[sorap2p.me](https://sorap2p.me)**) is a minimalist, retro-Habbo-style browser-based, zero-registration, E2E encrypted peer-to-peer file sharing utility.
+Sora (**[sorap2p.me](https://sorap2p.me)**) is a minimalist, retro-Habbo-inspired browser utility for secure, zero-registration, end-to-end encrypted peer-to-peer file and folder sharing.
 
 <p align="center">
   <img src="public/sora_mascot_transparent.png" width="128" alt="Sora Mascot" />
@@ -8,20 +8,27 @@ Sora (**[sorap2p.me](https://sorap2p.me)**) is a minimalist, retro-Habbo-style b
 
 ---
 
-## ⚡ Key Features
+## ⚡ Core Features
 
-- 🔒 **Zero Storage / Zero Accounts**: Files never touch the cloud. Connection keys are never logged or stored server-side.
-- 🔑 **Local 256-bit AES-GCM Encryption**: Encryption occurs directly in the browser's memory via the Web Crypto API. Decryption keys are stored inside the URL hash fragment (`#`) and are never sent over HTTP requests.
-- 🤝 **Secure ECDH Key Exchange Handshake**: If users manually enter a 6-digit passcode (without a pre-shared link hash), Sora negotiates a secure key using **Elliptic-Curve Diffie-Hellman (P-256)** over the signaling channel to guarantee cryptographic strength and protect against passive network sniffers.
-- 📁 **Folder & Multi-file Zipping (JSZip)**: Select entire directory trees or drag multiple files. Sora compresses them on-the-fly inside the browser memory before streaming the resulting zip file.
-- 🔄 **Resumable Transfers**: If your connection drops midway, Sora preserves your transfer buffer. Upon reconnecting, the receiver requests transmission from the exact byte offset it left off, avoiding complete restarts.
-- 🛡️ **SHA-256 integrity Verification**: Calculates cryptographic checksums on files/zips and compares them after assembly to guarantee error-free delivery.
-- 🔊 **Synthesized 8-Bit Sound Design**: Utilizes the native Web Audio API to generate vintage 2003 Shockwave/Habbo-style sound chimes for click feedbacks, connection handshakes, success metrics, and warnings.
+- 🔒 **Zero Storage / Zero Accounts**: Files never touch any cloud server. Connections are direct; peer coordination metadata is discarded immediately.
+- 🔑 **Local 256-bit AES-GCM Encryption**: Encryption occurs inside the browser sandbox using the native Web Crypto API. Decryption keys are stored inside the URL hash fragment (`#`) and are never sent over network requests.
+- 🤝 **Secure ECDH Passcode Handshake**: If peers manually enter a 6-digit passcode (without a pre-shared link hash), Sora negotiates session keys using **Elliptic-Curve Diffie-Hellman (P-256)** over the signaling channel to guarantee cryptographic strength against passive network sniffers.
+- 📁 **Folder & Multi-file Zipping (JSZip)**: Select entire directory structures or multiple files. Sora compresses them on-the-fly inside memory before starting the transmission stream.
+- 🔄 **Resumable Transfers**: If a WebRTC channel drops midway, Sora remembers the last byte offsets. Upon recovery, the receiver requests transmission from the exact offset, preventing complete restarts.
+- 🛡️ **SHA-256 Integrity Verification**: Calculates cryptographic checksums on zips/files in real-time, matching the checksums on assembly to guarantee error-free delivery.
+- 👾 **MascotMoji State Feedback**: An animated pixel mascot ("Packet") is integrated into the global app header, reacting dynamically to connection states:
+  - `idle`: Mascot stays happy and chirps.
+  - `connecting`: Mascot concentrates.
+  - `transferring`: Mascot waves and displays activity energy.
+  - `failed`: Mascot is sad, providing instant visual state cues.
+- 🧾 **Thermal Receipt Modal**: Successful file transmissions generate a vintage thermal-printer receipt with ASCII art, SHA-256 signatures, speed indicators, and file metrics.
+- 🖨️ **Print Optimization**: Integrates CSS print media rules (`@media print`) so printing a page automatically isolates and cleans the viewport, spitting out only the thermal receipt ticket.
+- 🔊 **Synthesized 8-Bit Shockwave Sounds**: Utilizes the native Web Audio API to synthesize retro Shockwave/Habbo-style sound chimes for click feedbacks, connection handshakes, success, and warnings.
 - 📡 **WebRTC Data Channels**: Encrypted chunks stream directly between browser windows.
 
 ---
 
-## 🛠️ Architecture & Under the Hood
+## 🛠️ Architecture & Flow
 
 ```
 [ Sender Browser ]                                [ Receiver Browser ]
@@ -34,35 +41,38 @@ Sora (**[sorap2p.me](https://sorap2p.me)**) is a minimalist, retro-Habbo-style b
        └───────────────────────────────────────────────────┘
 ```
 
-1. **Signaling Handshake**: Peers discover each other via a lightweight WebSocket signaling lobby. Once connected, signaling server is bypassed.
-2. **ECDH negotiation**: If no pre-shared key is found in the link hash, both clients exchange ephemeral public keys to derive a unique session key.
-3. **Backpressure management**: Avoids browser memory saturation by pausing file reading when the WebRTC `bufferedAmount` threshold exceeds 64KB, resuming dynamically.
-4. **Decryption Key Isolation**: Decryption secrets are derived from the URL `#` hash string. Since browsers never transmit hash strings to internet routers or signal servers, the transfer key remains exclusively yours.
+### 1. Backpressure Management
+To avoid browser memory crashes when sending large files, Sora monitors the WebRTC `bufferedAmount` threshold. If the buffer exceeds 64KB, file reading pauses and resumes dynamically as data is drained.
+
+### 2. Ephemeral Key Isolation
+Decryption secrets are derived from the URL `#` hash string. Since browsers never transmit hash strings to internet routers or signal servers, the transfer key remains exclusively yours.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Navigation & Pages
 
-### 1. Installation
+- 🏠 **Home (`/`)**: Main file upload portal, connection setup, file status dashboard, and the receipt ticket modal.
+- 📋 **History (`/history`)**: Persistent local storage ledger storing past receipts and SHA-256 auditing tickets.
+- 💻 **CLI Guide (`/cli`)**: Terminal guide for executing files transmission via local bash node lines.
+- 📖 **Docs (`/docs`)**: Security architecture details, E2E cryptographic proofs, and FAQ.
 
-Install dependencies:
+---
 
+## 💻 Installation & Local Dev
+
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
 ### 2. Run the Development Server
-
-Starts the React Router client (port `5173`, falling back to `5174`/`5175` if bound) alongside the WebSocket signaling server (port `3001`):
-
+Starts the Vite dev server alongside the WebSocket signaling server (port `3001`):
 ```bash
 npm run dev
 ```
 
-### 3. Build for Production
-
-Compiles optimization bundles for client static assets and server-side rendering (SSR):
-
+### 3. Production Build
+Compiles assets for static client pages and Server-Side Rendering (SSR):
 ```bash
 npm run build
 ```
@@ -74,10 +84,10 @@ npm run build
 ```
 ├── app/
 │   ├── context/          # Core WebRTC connection state, ECDH handshakes, and AES-GCM pipelines
-│   ├── routes/           # Routing screens (Home, Translogs, Terminal, Docs)
+│   ├── routes/           # Routing screens (Home, Docs, History, CLI)
 │   ├── utils/            # Utilities (Audio synthesizer sound effects engine)
 │   ├── app.css           # Styling system config, CRT scanlines, and mascot keyframes
-│   ├── root.tsx          # Global hotel layout structure & theme providers
+│   ├── root.tsx          # Global hotel layout structure & MascotMoji shell
 │   └── routes.ts         # Route module definitions
 ├── public/               # Transparent sprites and asset images
 ├── generated/assets/     # High-resolution branding outputs

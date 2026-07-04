@@ -601,9 +601,6 @@ export default function Home() {
     startTransfer,
     joinRoom,
     disconnectPeer,
-    sendAvatarMove,
-    sendAvatarChat,
-    registerAvatarCallbacks,
   } = useApp();
 
   const [dragActive, setDragActive] = useState(false);
@@ -1178,17 +1175,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-
-              {roomId && (
-                <div className="mt-4">
-                  <SoraRoomLobby
-                    roomId={roomId}
-                    sendAvatarMove={sendAvatarMove}
-                    sendAvatarChat={sendAvatarChat}
-                    registerAvatarCallbacks={registerAvatarCallbacks}
-                  />
-                </div>
-              )}
             </div>
 
             {/* CLI Instruction column */}
